@@ -1,10 +1,20 @@
 const express = require("express");
 const feedController = require("../controllers/feed.controller");
+const { body } = require("express-validator");
 
 const router = express.Router();
 
 // GET -> /feed/posts
 router.get("/posts", feedController.getPosts);
-router.post("/posts", feedController.addPost);
+
+// POST -> /feed/posts
+router.post(
+  "/posts",
+  [
+    body("title").trim().isLength({ min: 5 }),
+    body("content").trim().isLength({ min: 5 }),
+  ],
+  feedController.addPost
+);
 
 module.exports = router;
