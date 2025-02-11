@@ -150,6 +150,7 @@ exports.deletePost = (req, res, next) => {
 
 const clearImage = (filePath) => {
   filePath = path.join(__dirname, "../images", filePath);
+  filePath = filePath.replace("\\images", "");
   fs.unlink(filePath, (err) => {
     console.log(err);
   });
