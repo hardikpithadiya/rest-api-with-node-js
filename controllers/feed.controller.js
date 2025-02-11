@@ -1,11 +1,24 @@
 const { validationResult } = require("express-validator");
 const Post = require("../models/post.model");
+const fs = require("fs");
+const path = require("path");
 
 exports.getPosts = (req, res, next) => {
+  const currentPage = req.query.page || 1;
+  const pageSize = 2;
+  let totalPosts;
   Post.find()
+    .countDocuments()
+    .then((count) => {
+      totalPosts = count;
+      return Post.find()
+        .skip((currentPage - 1) * pageSize)
+        .limit(pageSize);
+    })
     .then((result) => {
       res.status(200).json({
         posts: result,
+        count: totalPosts,
       });
     })
     .catch((error) => {
@@ -39,16 +52,22 @@ exports.addPost = (req, res, next) => {
     throw error;
   }
 
+  if (!req.file) {
+    const error = new Error("No image provided..");
+    error.statusCode = 422;
+    throw error;
+  }
+
   const title = req.body.title;
   const content = req.body.content;
-  const imageUrl = req.body.imageUrl;
+  const imageUrl = req.file.path.replace("\\", "/");
 
   const post = new Post({
     title: title,
     content: content,
     imageUrl: imageUrl,
     creator: {
-      name: "Hardik",
+      name: "Hardik P",
     },
   });
   post
@@ -64,4 +83,86 @@ exports.addPost = (req, res, next) => {
       }
       next(err);
     });
+};
+
+exports.updatePost = (req, res, next) => {
+  console.log("here");
+  const errors = validationResult(req);
+  if (errors.errors && errors.errors.length > 0) {
+    const error = new Error("Invalid data");
+    error.statusCode = 422;
+    throw error;
+  }
+
+  const postId = req.params.postId;
+  const title = req.body.title;
+  const content = req.body.content;
+  let imageUrl = req.body.image;
+  if (req.file) {
+    imageUrl = req.file.path.replace("\\", "/");
+  }
+
+  if (!imageUrl) {
+    const error = new Error("No image provided..");
+    error.statusCode = 422;
+    throw error;
+  }
+
+  Post.findById(postId)
+    .then((post) => {
+      if (!post) {
+        const error = new Error("Not found");
+        error.statusCode = 404;
+        throw error;
+      }
+      if (imageUrl !== post.imageUrl) {
+        clearImage(post.imageUrl);
+      }
+      post.title = title;
+      post.content = content;
+      post.imageUrl = imageUrl;
+      return post.save();
+    })
+    .then((result) => {
+      res
+        .status(200)
+        .json({ message: "Product updated successfully...", post: result });
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      next(err);
+    });
+};
+
+exports.deletePost = (req, res, next) => {
+  const postId = req.params.postId;
+  Post.findById(postId)
+    .then((post) => {
+      if (!post) {
+        const error = new Error("Not found");
+        error.statusCode = 404;
+        throw error;
+      }
+      clearImage(post.imageUrl);
+      return Post.findOneAndDelete(postId);
+    })
+    .then(() => {
+      res.status(200).json({ message: "Product Deleted successfully..." });
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      next(err);
+    });
+};
+
+const clearImage = (filePath) => {
+  filePath = path.join(__dirname, "../images", filePath);
+  filePath = filePath.replace("\\images", "");
+  fs.unlink(filePath, (err) => {
+    console.log(err);
+  });
 };
