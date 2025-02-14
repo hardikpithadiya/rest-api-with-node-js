@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const feedRoutes = require("./routes/feed.route");
+const authRoutes = require("./routes/auth.route");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const multer = require("multer");
@@ -53,6 +54,7 @@ app.use((req, res, next) => {
 
 //Route initialize
 app.use("/feed", feedRoutes);
+app.use("/auth", authRoutes);
 
 //Error Handling
 app.use((error, req, res, next) => {
