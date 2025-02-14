@@ -8,11 +8,11 @@ exports.getPosts = (req, res, next) => {
   const currentPage = req.query.page || 1;
   const pageSize = 2;
   let totalPosts;
-  Post.find()
+  Post.find({ creator: req.userId })
     .countDocuments()
     .then((count) => {
       totalPosts = count;
-      return Post.find()
+      return Post.find({ creator: req.userId })
         .skip((currentPage - 1) * pageSize)
         .limit(pageSize);
     })
@@ -94,7 +94,6 @@ exports.addPost = (req, res, next) => {
 };
 
 exports.updatePost = (req, res, next) => {
-  console.log("here");
   const errors = validationResult(req);
   if (errors.errors && errors.errors.length > 0) {
     const error = new Error("Invalid data");
@@ -123,6 +122,13 @@ exports.updatePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+
+      if (post.creator.toString() !== req.userId) {
+        const error = new Error("Not authorized");
+        error.statusCode = 403;
+        throw error;
+      }
+
       if (imageUrl !== post.imageUrl) {
         clearImage(post.imageUrl);
       }
@@ -153,11 +159,23 @@ exports.deletePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+      if (post.creator.toString() !== req.userId) {
+        const error = new Error("Not authorized");
+        error.statusCode = 403;
+        throw error;
+      }
       clearImage(post.imageUrl);
       return Post.findOneAndDelete(postId);
     })
     .then(() => {
-      res.status(200).json({ message: "Product Deleted successfully..." });
+      return User.findById(req.userId);
+    })
+    .then((user) => {
+      // This will clear the post id in users table
+      return user.posts.pull(postId);
+    })
+    .then(() => {
+      res.status(200).json({ message: "Post Deleted successfully..." });
     })
     .catch((err) => {
       if (!err.statusCode) {
