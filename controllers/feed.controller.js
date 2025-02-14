@@ -1,7 +1,8 @@
 const { validationResult } = require("express-validator");
-const Post = require("../models/post.model");
 const fs = require("fs");
 const path = require("path");
+const Post = require("../models/post.model");
+const User = require("../models/user.model");
 
 exports.getPosts = (req, res, next) => {
   const currentPage = req.query.page || 1;
@@ -66,15 +67,22 @@ exports.addPost = (req, res, next) => {
     title: title,
     content: content,
     imageUrl: imageUrl,
-    creator: {
-      name: "Hardik P",
-    },
+    creator: req.userId,
   });
   post
     .save()
     .then((result) => {
+      return User.findById(req.userId);
+    })
+    .then((user) => {
+      user.posts.push(post);
+      return user.save();
+    })
+    .then((user) => {
       res.status(200).json({
-        post: result,
+        message: "Post created",
+        post: post,
+        creator: { _id: user._id, name: user.name },
       });
     })
     .catch((err) => {

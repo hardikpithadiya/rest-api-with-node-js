@@ -3,7 +3,6 @@ const { body } = require("express-validator");
 const router = express.Router();
 const authController = require("../controllers/auth.controller");
 const User = require("../models/user.model");
-const { Promise } = require("mongoose");
 
 router.put(
   "/signup",
